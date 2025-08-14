@@ -1,9 +1,12 @@
 import { format, isValid } from "date-fns";
-import { Pin, VolumeX, MessageCircle, Users } from "lucide-react";
+import { Pin, VolumeX, MessageCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import type { Chat } from "../../types";
 import { useChat } from "../../context/ChatContext";
 import { isUserOnline } from "../../utils/userUtils";
+import { Avatar } from "../ui/Avatar";
+import { Badge } from "../ui/Badge";
+import { Card } from "../ui/Card";
 
 export function ChatList() {
   const { chats, activeChat, setActiveChat, searchQuery } = useChat();
@@ -45,7 +48,7 @@ export function ChatList() {
 
   const getChatAvatar = (chat: Chat) => {
     if (chat.isGroup) {
-      return null; // Group avatar logic
+      return null;
     }
     return chat.participants?.find((p) => p.id !== user?.id)?.avatarUrl || null;
   };
@@ -67,11 +70,11 @@ export function ChatList() {
 
     switch (type) {
       case "image":
-        return `${prefix}📷 Image`;
+        return `${prefix}📷 Photo`;
       case "file":
         return `${prefix}📄 File`;
       case "audio":
-        return `${prefix}🎵 Audio`;
+        return `${prefix}🎵 Voice message`;
       default:
         return `${prefix}${content}`;
     }
@@ -79,89 +82,107 @@ export function ChatList() {
 
   const formatMessageTime = (timestamp: Date) => {
     if (!timestamp || !isValid(timestamp)) {
-      return ""; // Return empty string for invalid dates
+      return "";
     }
     return format(timestamp, "HH:mm");
   };
 
+  const getOtherUser = (chat: Chat) => {
+    return chat.participants?.find((p) => p.id !== user?.id);
+  };
+
+  if (sortedChats.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-text-tertiary p-8">
+        <MessageCircle className="h-16 w-16 mb-4 opacity-50" />
+        <p className="text-lg font-medium mb-2">No chats yet</p>
+        <p className="text-sm text-center">
+          {searchQuery ? "No chats match your search" : "Start a conversation by adding a contact"}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
-        {sortedChats.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <MessageCircle className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-sm">No chats found</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {sortedChats.map((chat) => (
-              <div
+        <div className="space-y-1 p-2">
+          {sortedChats.map((chat) => {
+            const otherUser = getOtherUser(chat);
+            const isActive = activeChat?.id === chat.id;
+            
+            return (
+              <Card
                 key={chat.id}
-                onClick={() => setActiveChat(chat)}
-                className={`flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  activeChat?.id === chat.id
-                    ? "bg-green-50 border-r-4 border-green-500"
-                    : ""
+                padding="none"
+                hover
+                className={`cursor-pointer transition-all duration-200 ${
+                  isActive 
+                    ? "bg-hunyadi-yellow/10 border-hunyadi-yellow/30 shadow-md" 
+                    : "hover:bg-cambridge-blue/5"
                 }`}
+                onClick={() => setActiveChat(chat)}
               >
-                <div className="relative">
-                  {chat.isGroup ? (
-                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                      <Users className="h-6 w-6 text-gray-600" />
-                    </div>
-                  ) : (
-                    <img
-                      src={getChatAvatar(chat) ?? undefined}
-                      alt={getChatName(chat)}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  )}
-                  {!chat.isGroup &&
-                    (() => {
-                      const otherUser = chat.participants?.find(
-                        (p) => p.id !== user?.id
-                      );
-                      return otherUser && isUserOnline(otherUser) ? (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                      ) : null;
-                    })()}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {getChatName(chat)}
-                      </h3>
-                      {chat.isPinned && (
-                        <Pin className="h-4 w-4 text-gray-500" />
-                      )}
-                      {chat.isMuted && (
-                        <VolumeX className="h-4 w-4 text-gray-500" />
-                      )}
-                    </div>
-                    {chat.lastMessage && (
-                      <span className="text-xs text-gray-500">
-                        {formatMessageTime(chat.lastMessage.timestamp)}
-                      </span>
+                <div className="flex items-center space-x-3 p-4">
+                  {/* Avatar */}
+                  <div className="relative flex-shrink-0">
+                    {chat.isGroup ? (
+                      <Avatar
+                        fallback="G"
+                        size="lg"
+                        className="bg-cambridge-blue/20"
+                      />
+                    ) : (
+                      <Avatar
+                        src={getChatAvatar(chat) ?? undefined}
+                        fallback={getChatName(chat).charAt(0)}
+                        size="lg"
+                        status={otherUser && isUserOnline(otherUser) ? "online" : "offline"}
+                        showStatus={!chat.isGroup}
+                      />
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm text-gray-600 truncate">
-                      {getLastMessagePreview(chat)}
-                    </p>
-                    {chat.unreadCount > 0 && (
-                      <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-green-500 rounded-full">
-                        {chat.unreadCount}
-                      </span>
-                    )}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-2 min-w-0 flex-1">
+                        <h3 className="font-medium text-text-primary truncate">
+                          {getChatName(chat)}
+                        </h3>
+                        {chat.isPinned && (
+                          <Pin className="h-3 w-3 text-cambridge-blue flex-shrink-0" />
+                        )}
+                        {chat.isMuted && (
+                          <VolumeX className="h-3 w-3 text-text-tertiary flex-shrink-0" />
+                        )}
+                      </div>
+                      {chat.lastMessage && (
+                        <span className="text-xs text-text-tertiary flex-shrink-0 ml-2">
+                          {formatMessageTime(chat.lastMessage.timestamp)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-text-secondary truncate flex-1 mr-2">
+                        {getLastMessagePreview(chat)}
+                      </p>
+                      {chat.unreadCount > 0 && (
+                        <Badge 
+                          variant="success" 
+                          className="bg-hunyadi-yellow text-ink-900 border-hunyadi-yellow/30 flex-shrink-0"
+                        >
+                          {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

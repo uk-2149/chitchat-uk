@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Phone, Video, Info, ArrowLeft } from "lucide-react";
-import { MessageBubble } from "./MessageBubble";
+import { Phone, Video, Info, ArrowLeft, MoreVertical } from "lucide-react";
+import { MessageBubble } from "../ui/MessageBubble";
 import { MessageInput } from "./MessageInput";
 import { DateSeparator } from "./DateSeparator";
 import { ContactInfo } from "./ContactInfo";
@@ -10,6 +10,10 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { groupMessagesByDate } from "../../utils/messageUtils";
 import { isUserOnline, getUserOnlineStatusText } from "../../utils/userUtils";
 import { ChatOptions } from "./ChatOptions";
+import { Avatar } from "../ui/Avatar";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { TypingIndicator } from "../ui/TypingIndicator";
 
 export function ChatWindow() {
   const { activeChat, setActiveChat, initiateCall, deleteContact } = useChat();
@@ -17,11 +21,20 @@ export function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const showBackButton = useMediaQuery("(max-width: 1030px)");
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
+  const [showTyping, setShowTyping] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    console.log(activeChat);
-  }, [activeChat]);
+  }, [activeChat?.messages]);
+
+  // Simulate typing indicator (you can replace this with real typing detection)
+  useEffect(() => {
+    if (activeChat?.messages.length) {
+      setShowTyping(true);
+      const timer = setTimeout(() => setShowTyping(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeChat?.messages]);
 
   const handleBackClick = () => {
     setActiveChat(null);
@@ -41,7 +54,6 @@ export function ChatWindow() {
   };
 
   const handleBlockContact = () => {
-    // TODO: Implement block contact functionality
     console.log("Block contact");
     setIsContactInfoOpen(false);
   };
@@ -53,11 +65,9 @@ export function ChatWindow() {
     try {
       await deleteContact(contact.id);
       setIsContactInfoOpen(false);
-      // Optional: Show success message
       console.log("Contact deleted successfully");
     } catch (error) {
       console.error("Failed to delete contact:", error);
-      // Optional: Show error message to user
     }
   };
 
@@ -68,11 +78,11 @@ export function ChatWindow() {
 
   if (!activeChat) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="flex-1 flex items-center justify-center bg-bg-primary">
+        <Card className="text-center max-w-md mx-auto" padding="lg">
+          <div className="w-24 h-24 bg-hunyadi-yellow/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
-              className="w-16 h-16 text-green-500"
+              className="w-12 h-12 text-hunyadi-yellow"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -85,11 +95,13 @@ export function ChatWindow() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-xl font-semibold text-text-primary mb-2">
             Welcome to ChitChat
           </h3>
-          <p className="text-gray-600">Select a chat to start messaging</p>
-        </div>
+          <p className="text-text-secondary">
+            Select a chat to start messaging or add a new contact to begin
+          </p>
+        </Card>
       </div>
     );
   }
@@ -124,152 +136,146 @@ export function ChatWindow() {
       : "Last seen recently";
   };
 
+  const otherUser = activeChat.participants.find((p) => p.id !== user?.id);
+
   return (
-    <div className="flex-1 flex flex-col bg-white relative">
-      {/* Fixed Header */}
-      <div className="fixed top-0 left-0 right-0 lg:left-80 flex items-center justify-between p-4 border-b border-gray-200 bg-white z-30">
+    <div className="flex-1 flex flex-col bg-bg-primary relative">
+      {/* Header */}
+      <Card className="flex items-center justify-between p-4 border-b border-border-secondary rounded-none bg-bg-surface">
         <div className="flex items-center space-x-3">
           {showBackButton && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleBackClick}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-              title="Back to chats"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
+              icon={<ArrowLeft className="h-5 w-5" />}
+              className="p-2"
+            />
           )}
-          <div className="relative">
-            {activeChat.isGroup ? (
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                <span className="text-gray-600 font-medium">
-                  {getChatName().charAt(0).toUpperCase()}
-                </span>
-              </div>
-            ) : (
-              <>
-                <img
-                  src={getChatAvatar() ?? undefined}
-                  alt={getChatName()}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                {/* Online status indicator */}
-                {(() => {
-                  const otherUser = activeChat.participants.find(
-                    (p) => p.id !== user?.id
-                  );
-                  return otherUser && isUserOnline(otherUser) ? (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                  ) : null;
-                })()}
-              </>
-            )}
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900">{getChatName()}</h3>
-            <p className="text-sm text-gray-500">{getOnlineStatus()}</p>
+          
+          <Avatar
+            src={getChatAvatar() ?? undefined}
+            fallback={getChatName().charAt(0)}
+            size="md"
+            status={otherUser && isUserOnline(otherUser) ? "online" : "offline"}
+            showStatus={!activeChat.isGroup}
+          />
+          
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-text-primary truncate">
+              {getChatName()}
+            </h3>
+            <p className="text-sm text-text-secondary truncate">
+              {getOnlineStatus()}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleInitiateCall("audio")}
             disabled={activeChat.isGroup}
-            title={
-              activeChat.isGroup
-                ? "Calls not supported in group chats"
-                : "Start audio call"
-            }
-          >
-            <Phone className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+            icon={<Phone className="h-5 w-5" />}
+            className="p-2"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleInitiateCall("video")}
             disabled={activeChat.isGroup}
-            title={
-              activeChat.isGroup
-                ? "Calls not supported in group chats"
-                : "Start video call"
-            }
-          >
-            <Video className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            icon={<Video className="h-5 w-5" />}
+            className="p-2"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setIsContactInfoOpen(true)}
             disabled={activeChat.isGroup}
-            title={
-              activeChat.isGroup
-                ? "Contact info not available for groups"
-                : "Contact information"
-            }
-          >
-            <Info className="h-5 w-5" />
-          </button>
+            icon={<Info className="h-5 w-5" />}
+            className="p-2"
+          />
           <ChatOptions chat={activeChat} />
         </div>
-      </div>
+      </Card>
 
-      {/* Messages with top padding to account for fixed header */}
-      <div className="flex-1 overflow-y-auto p-4 pt-20 pb-24 space-y-2 bg-gray-50">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {activeChat.messages.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              No messages yet. Start the conversation!
-            </p>
+          <div className="flex items-center justify-center h-full">
+            <Card className="text-center" padding="lg">
+              <p className="text-text-secondary">
+                No messages yet. Start the conversation!
+              </p>
+            </Card>
           </div>
         ) : (
           (() => {
             const messageGroups = groupMessagesByDate(activeChat.messages);
 
             return messageGroups.map((group, groupIndex) => (
-              <div key={group.date.toISOString()} className="space-y-2">
-                {/* Date Separator */}
+              <div key={group.date.toISOString()} className="space-y-4">
                 <DateSeparator date={group.date} />
 
-                {/* Messages for this date */}
-                {group.messages.map((message, messageIndex) => {
-                  const previousMessage =
-                    messageIndex > 0
-                      ? group.messages[messageIndex - 1]
-                      : groupIndex > 0
-                        ? messageGroups[groupIndex - 1].messages[
-                            messageGroups[groupIndex - 1].messages.length - 1
-                          ]
-                        : null;
+                <div className="space-y-3">
+                  {group.messages.map((message, messageIndex) => {
+                    const previousMessage =
+                      messageIndex > 0
+                        ? group.messages[messageIndex - 1]
+                        : groupIndex > 0
+                          ? messageGroups[groupIndex - 1].messages[
+                              messageGroups[groupIndex - 1].messages.length - 1
+                            ]
+                          : null;
 
-                  return (
-                    <MessageBubble
-                      key={message.id}
-                      message={message}
-                      isOwn={message.senderId === user?.id}
-                      showAvatar={
-                        !previousMessage ||
-                        previousMessage.senderId !== message.senderId
-                      }
-                      senderName={
-                        activeChat.isGroup
-                          ? activeChat.participants.find(
-                              (p) => p.id === message.senderId
-                            )?.displayName
-                          : undefined
-                      }
-                      ifblocked={message.isBlocked}
-                    />
-                  );
-                })}
+                    return (
+                      <MessageBubble
+                        key={message.id}
+                        content={message.content}
+                        timestamp={message.timestamp}
+                        isOwn={message.senderId === user?.id}
+                        status={message.status}
+                        showAvatar={
+                          !previousMessage ||
+                          previousMessage.senderId !== message.senderId
+                        }
+                        senderName={
+                          activeChat.isGroup
+                            ? activeChat.participants.find(
+                                (p) => p.id === message.senderId
+                              )?.displayName
+                            : undefined
+                        }
+                        senderAvatar={
+                          activeChat.participants.find(
+                            (p) => p.id === message.senderId
+                          )?.avatarUrl
+                        }
+                        type={message.type}
+                        mediaUrl={message.mediaUrl}
+                        isAI={message.type === "ai_response"}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             ));
           })()
         )}
+
+        {/* Typing Indicator */}
+        {showTyping && !activeChat.isGroup && (
+          <div className="flex justify-start">
+            <TypingIndicator />
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Fixed Message Input */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-80 bg-white z-30">
-        <MessageInput />
-      </div>
+      {/* Message Input */}
+      <MessageInput />
 
       {/* Contact Info Modal */}
       {!activeChat.isGroup && getContactFromActiveChat() && (

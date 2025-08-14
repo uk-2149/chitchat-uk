@@ -1,10 +1,11 @@
 import React, { useState, useRef } from "react";
-import { Send, Paperclip, Smile } from "lucide-react";
+import { Send, Paperclip, Smile, Mic, X, Play, Pause } from "lucide-react";
 import toast from "react-hot-toast";
 import EmojiPicker from "emoji-picker-react";
 import { useChat } from "../../context/ChatContext";
 import { useVoiceRecording } from "../../hooks/useVoiceRecording";
-import { VoiceRecorder } from "./VoiceRecorder";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
 
 export function MessageInput() {
   const { activeChat, sendMessage, sendAudioMessage } = useChat();
@@ -32,8 +33,7 @@ export function MessageInput() {
     e.preventDefault();
 
     if (isBlocked) {
-      // Show error message or toast
-      console.warn("Cannot send message to blocked contact");
+      toast.error("Cannot send message to blocked contact");
       return;
     }
 
@@ -51,8 +51,8 @@ export function MessageInput() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && activeChat) {
-      // Handle file upload logic here
       console.log("File selected:", file);
+      // Handle file upload logic here
     }
   };
 
@@ -64,9 +64,7 @@ export function MessageInput() {
         await startRecording();
       } catch (error) {
         console.log("Error starting recording:", error);
-        toast.error(
-          "Failed to start recording. Please check microphone permissions."
-        );
+        toast.error("Failed to start recording. Please check microphone permissions.");
       }
     }
   };
@@ -75,7 +73,7 @@ export function MessageInput() {
     if (audioBlob && recordingTime > 0) {
       try {
         await sendAudioMessage(audioBlob, recordingTime);
-        cancelRecording(); // Clear the recording
+        cancelRecording();
         toast.success("Voice message sent!");
       } catch (error) {
         toast.error("Failed to send voice message");
@@ -95,46 +93,126 @@ export function MessageInput() {
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   if (isBlocked) {
     return (
-      <div className="border-t border-gray-200 p-4 bg-gray-50">
-        <div className="text-center text-gray-500">
-          <p className="text-sm">You cannot send messages to this contact.</p>
-          <p className="text-xs">This contact has been blocked.</p>
+      <Card className="m-4 bg-light-coral/10 border-light-coral/20">
+        <div className="text-center text-light-coral py-4">
+          <p className="font-medium">Cannot send messages</p>
+          <p className="text-sm opacity-80">This contact has been blocked</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="border-t border-gray-200 p-4 bg-white">
-      <form onSubmit={handleSubmit} className="flex items-end space-x-2">
-        <div className="flex-1 relative">
-          <div className="flex items-center space-x-2 bg-gray-50 rounded-full px-4 py-2">
-            <button
-              type="button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <Smile className="h-5 w-5" />
-            </button>
+    <Card className="m-4" padding="sm">
+      {/* Voice Recording UI */}
+      {(isRecording || audioBlob) && (
+        <div className="mb-4 p-4 bg-hunyadi-yellow/10 rounded-xl border border-hunyadi-yellow/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {isRecording ? (
+                <>
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                  <Mic className="h-4 w-4 text-red-500" />
+                  <span className="font-mono text-sm text-text-primary">
+                    {formatTime(recordingTime)}
+                  </span>
+                  {/* Animated waveform */}
+                  <div className="flex items-center space-x-1 ml-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-1 bg-hunyadi-yellow rounded-full waveform-bar"
+                        style={{ animationDelay: `${i * 0.1}s` }}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Mic className="h-4 w-4 text-hunyadi-yellow" />
+                  <span className="text-sm text-text-primary">
+                    Voice message ({formatTime(recordingTime)})
+                  </span>
+                </>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={isRecording ? handleCancelAudio : handleCancelAudio}
+                icon={<X className="h-4 w-4" />}
+                className="text-text-tertiary hover:text-light-coral"
+              />
+              {isRecording ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleVoiceRecord}
+                  icon={<Pause className="h-4 w-4" />}
+                />
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSendAudio}
+                  icon={<Send className="h-4 w-4" />}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-            <input
-              type="text"
+      {/* Text Input */}
+      <form onSubmit={handleSubmit} className="flex items-end space-x-3">
+        <div className="flex-1 relative">
+          <div className="flex items-center space-x-2 bg-cambridge-blue/5 rounded-2xl px-4 py-3 border border-cambridge-blue/10 focus-within:border-cambridge-blue/30 transition-colors">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              icon={<Smile className="h-5 w-5" />}
+              className="p-1 text-text-tertiary hover:text-hunyadi-yellow"
+            />
+
+            <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
-              className="flex-1 bg-transparent border-none outline-none placeholder-gray-500"
+              className="flex-1 bg-transparent border-none outline-none placeholder-text-tertiary text-text-primary resize-none max-h-32 min-h-[24px]"
+              rows={1}
+              style={{
+                height: 'auto',
+                minHeight: '24px',
+                maxHeight: '128px'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = target.scrollHeight + 'px';
+              }}
             />
 
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
+              icon={<Paperclip className="h-5 w-5" />}
+              className="p-1 text-text-tertiary hover:text-cambridge-blue"
+            />
 
             <input
               ref={fileInputRef}
@@ -145,37 +223,48 @@ export function MessageInput() {
             />
           </div>
 
+          {/* Emoji Picker */}
           {showEmojiPicker && (
             <div className="absolute bottom-full mb-2 left-0 z-10">
-              <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                width={300}
-                height={400}
-              />
+              <Card className="shadow-xl">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  width={320}
+                  height={400}
+                />
+              </Card>
             </div>
           )}
         </div>
 
+        {/* Send/Voice Button */}
         {message.trim() ? (
-          <button
+          <Button
             type="submit"
-            className="bg-green-500 text-white p-2 rounded-full hover:bg-green-600 transition-colors"
-          >
-            <Send className="h-5 w-5" />
-          </button>
+            variant="primary"
+            size="md"
+            icon={<Send className="h-5 w-5" />}
+            className="rounded-full p-3"
+          />
         ) : (
-          <VoiceRecorder
-            isRecording={isRecording}
-            recordingTime={recordingTime}
-            onStart={handleVoiceRecord}
-            onStop={handleVoiceRecord}
-            onCancel={handleCancelAudio}
-            onSend={handleSendAudio}
-            hasRecording={!!audioBlob}
-            error={recordingError}
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={handleVoiceRecord}
+            icon={<Mic className="h-5 w-5" />}
+            className="rounded-full p-3"
+            disabled={isRecording || !!audioBlob}
           />
         )}
       </form>
-    </div>
+
+      {/* Recording Error */}
+      {recordingError && (
+        <div className="mt-2 p-2 bg-light-coral/10 border border-light-coral/20 rounded-lg">
+          <p className="text-sm text-light-coral">{recordingError}</p>
+        </div>
+      )}
+    </Card>
   );
 }
